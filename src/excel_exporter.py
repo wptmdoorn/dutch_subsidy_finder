@@ -12,6 +12,7 @@ import pandas as pd
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils.dataframe import dataframe_to_rows
+from openpyxl.utils import get_column_letter
 
 from .config import Config
 
@@ -65,6 +66,7 @@ class ExcelExporter:
                 'Website URL': subsidy.get('url', ''),
                 'Relevance Score': subsidy.get('relevance_score', 0),
                 'Keywords Matched': subsidy.get('keywords_matched', ''),
+                'Researcher Level': subsidy.get('researcher_level', ''),
                 'Date Scraped': subsidy.get('date_scraped', '')
             }
             data.append(row)
@@ -84,8 +86,9 @@ class ExcelExporter:
         ws = wb.active
         ws.title = "Dutch Subsidies"
         
-        # Add title
-        ws.merge_cells('A1:N1')
+        # Add title (merge across all columns)
+        last_col = chr(ord('A') + len(df.columns) - 1)
+        ws.merge_cells(f'A1:{last_col}1')
         title_cell = ws['A1']
         title_cell.value = f"Dutch Research & Innovation Subsidies - Clinical Chemistry & AI Focus"
         title_cell.font = Font(size=16, bold=True, color="FFFFFF")
@@ -93,7 +96,7 @@ class ExcelExporter:
         title_cell.alignment = Alignment(horizontal="center", vertical="center")
         
         # Add subtitle with generation info
-        ws.merge_cells('A2:N2')
+        ws.merge_cells(f'A2:{last_col}2')
         subtitle_cell = ws['A2']
         subtitle_cell.value = f"Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Total: {len(df)} subsidies"
         subtitle_cell.font = Font(size=12, italic=True)
@@ -114,26 +117,22 @@ class ExcelExporter:
             cell.font = header_font
             cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
         
-        # Set column widths and formatting
-        column_widths = {
-            'A': 30,  # Subsidy Name
-            'B': 25,  # Funding Organization
-            'C': 20,  # Amount/Budget
-            'D': 15,  # Application Deadline
-            'E': 10,  # Status
-            'F': 40,  # Eligibility Criteria
-            'G': 25,  # Research Areas
-            'H': 50,  # Description
-            'I': 30,  # Application Process
-            'J': 25,  # Contact Information
-            'K': 40,  # Website URL
-            'L': 12,  # Relevance Score
-            'M': 30,  # Keywords Matched
-            'N': 15   # Date Scraped
-        }
+        # Freeze header row
+        ws.freeze_panes = f'A5'
         
-        for col_letter, width in column_widths.items():
-            ws.column_dimensions[col_letter].width = width
+        # Auto-fit column widths (avoid merged cell errors)
+        for col_idx in range(1, ws.max_column + 1):
+            col_letter = get_column_letter(col_idx)
+            max_length = 0
+            for row in range(1, ws.max_row + 1):
+                cell = ws.cell(row=row, column=col_idx)
+                try:
+                    if cell.value:
+                        max_length = max(max_length, len(str(cell.value)))
+                except:
+                    pass
+            adjusted_width = max_length + 2
+            ws.column_dimensions[col_letter].width = min(adjusted_width, 50)
         
         # Format data rows
         thin_border = Border(
@@ -151,7 +150,7 @@ class ExcelExporter:
                 cell.alignment = Alignment(vertical="top", wrap_text=True)
                 
                 # Special formatting for specific columns
-                if col == 12:  # Relevance Score column
+                if col == df.columns.get_loc('Relevance Score') + 1:
                     cell.alignment = Alignment(horizontal="center", vertical="center")
                     # Color code relevance scores
                     score = cell.value
@@ -163,14 +162,14 @@ class ExcelExporter:
                         elif score >= 4:
                             cell.fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")  # Light red
                 
-                elif col == 5:  # Status column
+                elif col == df.columns.get_loc('Status') + 1:
                     cell.alignment = Alignment(horizontal="center", vertical="center")
                     if cell.value == "Open":
                         cell.fill = PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid")  # Light green
                     elif cell.value == "Closed":
                         cell.fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")  # Light red
                 
-                elif col == 11:  # Website URL column
+                elif col == df.columns.get_loc('Website URL') + 1:
                     if cell.value:
                         cell.font = Font(color="0000FF", underline="single")  # Blue hyperlink style
         

@@ -13,6 +13,7 @@ Date: 2025
 import asyncio
 import logging
 import sys
+import io
 from datetime import datetime
 from pathlib import Path
 
@@ -21,6 +22,11 @@ from src.scraper_manager import ScraperManager
 from src.data_processor import DataProcessor
 from src.excel_exporter import ExcelExporter
 from src.utils import setup_logging
+
+# Ensure UTF-8 output on Windows to support emoji and Unicode
+if sys.platform == "win32":
+    sys.stdout = io.TextIOWrapper(sys.stdout.detach(), encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.detach(), encoding='utf-8', errors='replace')
 
 
 async def main():

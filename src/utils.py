@@ -20,7 +20,7 @@ def setup_logging():
         level=getattr(logging, Config.LOG_LEVEL),
         format=Config.LOG_FORMAT,
         handlers=[
-            logging.FileHandler(logs_dir / Config.LOG_FILE),
+            logging.FileHandler(logs_dir / Config.LOG_FILE, encoding='utf-8'),
             logging.StreamHandler()
         ]
     )

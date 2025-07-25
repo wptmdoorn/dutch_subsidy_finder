@@ -35,6 +35,10 @@ class DataProcessor:
                 # Add matched keywords
                 matched_keywords = self._get_matched_keywords(cleaned_subsidy)
                 cleaned_subsidy['keywords_matched'] = ', '.join(matched_keywords)
+
+                # Infer researcher level
+                researcher_level = self._extract_researcher_level(cleaned_subsidy)
+                cleaned_subsidy['researcher_level'] = researcher_level
                 
                 # Only include subsidies that meet minimum relevance threshold
                 if relevance_score >= Config.MIN_RELEVANCE_SCORE:
@@ -211,6 +215,24 @@ class DataProcessor:
                 matched.append(keyword)
         
         return matched[:10]  # Limit to top 10 matches
+    
+    def _extract_researcher_level(self, subsidy: Dict) -> str:
+        """Infer the required researcher level from eligibility/description fields."""
+        text = (subsidy.get('eligibility', '') + ' ' + subsidy.get('description', '')).lower()
+        # Define patterns and their labels
+        patterns = [
+            (r'\bphd\b|\bpromovend[ei]\b|\bdoctorand[ui]\b|\bdoctoral\b|\bjunior\b|\bearly[- ]?career\b', 'Junior / PhD / Early Career'),
+            (r'\bpostdoc\b|\bpost-doctoral\b', 'Postdoc'),
+            (r'\bsenior\b|\bexperienced\b|\bmid[- ]?career\b', 'Senior / Experienced'),
+            (r'\bprofessor\b|\bhoogleraar\b|\bprincipal investigator\b|\bpi\b', 'Professor / PI'),
+            (r'\bgroup leader\b|\bconsortium\b|\bteam\b|\bgroup of researchers\b|\bmultiple researchers\b', 'Group / Consortium'),
+            (r'\bmaster\'s student\b|\bmsc student\b|\bgraduate student\b', 'Master Student'),
+            (r'\bundergraduate\b|\bbachelor\'s student\b', 'Undergraduate'),
+        ]
+        for pattern, label in patterns:
+            if re.search(pattern, text):
+                return label
+        return 'Unspecified / Open'
     
     def _has_upcoming_deadline(self, deadline: str) -> bool:
         """Check if deadline is within the next 90 days."""
